@@ -277,7 +277,9 @@ def script_update(settings):
     global utc
     global UTC
     global JST
+    global ibe
     
+    ibe    =obs.obs_data_get_int(settings, "eve")
     utc    = obs.obs_data_get_int(settings, "utc")
     interval    = obs.obs_data_get_int(settings, "interval")
     source_name = obs.obs_data_get_string(settings, "source")
