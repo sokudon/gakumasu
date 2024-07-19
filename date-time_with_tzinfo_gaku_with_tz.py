@@ -56,9 +56,9 @@ zone		="Asia/Tokyo"
 
 # 全てのタイムゾーンを取得を使いたい場合下のコード
 #おそらくzoneinfoのインストールが必要　　python -m pip install tzdata
-#from zoneinfo import available_timezones
-#zones = sorted(available_timezones())
-zones	   = ["Asia/Tokyo","Asia/Seoul","Asia/Taipei","America/Los_Angeles"]
+from zoneinfo import available_timezones
+zones = sorted(available_timezones())
+#zones	   = ["Asia/Tokyo","Asia/Seoul","Asia/Taipei","America/Los_Angeles"]
 
 #https://learn.microsoft.com/ja-jp/windows-hardware/manufacture/desktop/default-time-zones?view=windows-11
 mstz = ["UTC-11:00","UTC-10:00","UTC-08:00","UTC-07:00","UTC-06:00","UTC-05:00","UTC-04:30","UTC-04:00","UTC-03:00","UTC-02:00","UTC-01:00","UTC","UTC+01:00","UTC+02:00","UTC+03:00","UTC+03:30","UTC+04:00","UTC+04:30","UTC+05:00","UTC+05:30","UTC+05:45","UTC+06:00","UTC+06:30","UTC+07:00","UTC+08:00","UTC+09:00","UTC+10:00","UTC+11:00","UTC+12:00","UTC+13:00"]
