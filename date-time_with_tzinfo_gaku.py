@@ -3,6 +3,7 @@
 
 # 導入手順　https://photos.app.goo.gl/puPDpiXsFb41YjW77
 #work on OBS  python312
+#2024/07/21　RFC2822だかの形式パース、スパンがゼロのとき例外処理,spanの文字処理をdttime関数に
 #2024/07/20　UTCMATERにM$の標準時リストUTC+??を追加  zoneinfoからの全取得コードを追加（デフォは57行コメントアウト）,開始終了時刻がどちらかが未確定のときエラーを減らした
 #2024/06/08　ISO8601以外の通常の時刻を変換できるようにした　例:2024/06/08 03:28
 #2024/05/21　zoneinfoのデータが2006年前でしかはいってないようなので除外（）
@@ -79,11 +80,52 @@ patterns = [
 	r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$",	  # YYYY-MM-DDTHH:MM:SS
 	r"^\d{4}/\d{2}/\d{2}$",						# YYYY/MM/DD
 	r"^\d{4}-\d{2}-\d{2}$",						 # YYYY-MM-DD
-	r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[\+\-]\d{2}:\d{2})?$"
+	r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[\+\-]\d{2}:\d{2})?$",
+	r"^(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun), )?(\d{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d{2}):(\d{2})(?::(\d{2}))? ([-+]\d{4}|[A-Z]{1,3})$" ## RFC 2822形式
 ]
 
-# ------------------------------------------------------------
 
+# 月の略称を対応する数値にマッピング
+month_mapping = {
+	"Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+	"Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
+}
+
+# 使用例
+#rfc2822_date = "Tue, 25 Dec 2023 13:45:30 +0900"
+#parsed_date = parse_rfc2822(rfc2822_date)
+#print(parsed_date)
+
+# RFC 2822の日付文字列をパースする関数
+def parse_rfc2822(date_str):
+# RFC 2822形式の日付をパースする正規表現
+	pattern = re.compile(r'^(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun), )?(\d{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d{2}):(\d{2})(?::(\d{2}))? ([-+]\d{4}|[A-Z]{1,3})$')
+	match = pattern.match(date_str)
+	if not match:
+		raise ValueError("Invalid RFC 2822 date format")
+
+	day, date, month, year, hour, minute, second, offset = match.groups()
+	date = int(date)
+	month = month_mapping[month]
+	year = int(year)
+	hour = int(hour)
+	minute = int(minute)
+	second = int(second) if second else 0
+	
+	tz_offset=0
+	if  offset.startswith(('+', '-')):
+		tz_hours = int(offset[1:3])
+		tz_minutes = int(offset[3:5])
+		tz_offset = tz_hours+tz_minutes/60
+		if offset.startswith('-'):
+			tz_offset = -tz_offset
+
+	t_delta = datetime.timedelta(hours=tz_offset)
+	rfc = datetime.timezone(t_delta, 'RFC') 
+	# datetimeオブジェクトを作成
+	dt =  datetime.datetime(year, month, date, hour, minute, second, tzinfo=rfc)
+
+	return dt.isoformat()
 
 def dtime(dt):
 	if dt<0:
@@ -161,18 +203,20 @@ def update_text():
 		temp=temp.replace('%EN',te)
 		temp=temp.replace('%LF',left)
 		if(st != "----"):
-			span= abs(ent-stt)
-			x = (nn-sttmp)/abs(entmp-sttmp)*100
-			n = 2
-			y = math.floor(x * 10 ** n) / (10 ** n)
-			if y>100:
+			if(entmp-sttmp !=0):
+				x = (nn-sttmp)/abs(entmp-sttmp)*100
+				n = 2
+				y = math.floor(x * 10 ** n) / (10 ** n)
+				if y>100:
 					 y=100
-			if y<0:
+				if y<0:
 					 y=0
-			bar=makebar(y)
-			temp=temp.replace('%SP',str(span))
-			temp=temp.replace('%Q',bar)
-			temp=temp.replace('%P',str(y))
+				bar=makebar(y)
+				span=dtime(entmp-sttmp)
+				#span= abs(ent-stt)
+				temp=temp.replace('%SP',str(span))
+				temp=temp.replace('%Q',bar)
+				temp=temp.replace('%P',str(y))
 	else:
 		temp=temp.replace('%EN',"----")
 		temp=temp.replace('%LF',"----")
@@ -287,6 +331,9 @@ def parse_datetime(datetime_str):
 				elif pattern == patterns[5]:
 					datetime_str=datetime_str.replace('Z', '+00:00')
 					return datetime.datetime.fromisoformat(datetime_str) # Call fromisoformat directly on datetime
+				elif pattern == patterns[6]:
+					dt =parse_rfc2822(datetime_str)
+					return datetime.datetime.fromisoformat(dt)
 			except ValueError:
 				pass
 	return None
